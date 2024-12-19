@@ -1,14 +1,30 @@
 # PubPeer-comments-finder
 
-A simple R function to retrieve the number of PubPeer comments for any PubMed ID using the PubPeer API.
+A simple R function to retrieve the number of PubPeer comments for any PubMed ID by web scraping.
 
 ## Installation
 
-This script requires two R packages:
-- `httr`
-- `jsonlite`
+This script requires:
 
-These will be automatically installed if they're not already present on your system.
+R packages:
+- `httr`
+- `rvest`
+- `reticulate`
+
+Python dependencies:
+- `selenium`
+- `webdriver_manager`
+
+Installation steps:
+1. Install Python from python.org
+2. Run these commands in terminal:
+   ```bash
+   pip install selenium webdriver_manager
+   ```
+3. Install R packages:
+   ```r
+   install.packages(c("httr", "rvest", "reticulate"))
+   ```
 
 ## Usage
 
@@ -44,14 +60,15 @@ tryCatch({
 ### Returns
 - An integer representing the number of PubPeer comments
 - Returns 0 if the publication is not found or has no comments
-- Throws an error if there are connection issues or API problems
+- Throws an error if there are connection issues or scraping problems
 
 ## Notes
 
 - Requires an active internet connection
-- Uses PubPeer API v3
+- Uses web scraping to get comment counts
+- Requires Chrome browser to be installed
 - Returns 0 for publications not found on PubPeer or without comments
-- Includes error handling for API and connection issues
+- Includes error handling for connection and scraping issues
 
 ## License
 
