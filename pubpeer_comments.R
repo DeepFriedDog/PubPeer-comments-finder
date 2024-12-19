@@ -1,3 +1,21 @@
+# Load required packages
+library(httr)
+library(rvest)
+library(reticulate)
+
+# Configure Python path explicitly
+use_python("C:/Python312/python.exe")
+
+# Install Python dependencies if not present
+if (!py_module_available("selenium")) {
+  system("pip install selenium webdriver_manager")
+}
+
+# Import Python modules
+selenium <- import("selenium")
+webdriver <- import("selenium.webdriver")
+webdriver_manager <- import("webdriver_manager.chrome")
+
 #' Get PubPeer Comments Count
 #' 
 #' This function retrieves the number of PubPeer comments for a given PubMed ID
@@ -7,55 +25,50 @@
 #' comments_count <- get_pubpeer_comments_count("12345678")
 #' 
 get_pubpeer_comments_count <- function(pmid) {
-  # Debug: Print PMID
-  cat("Checking PMID:", pmid, "\n")
-  
-  api_url <- paste0("https://pubpeer.com/v3/publications/", pmid)
-  cat("API URL:", api_url, "\n")
-  
-  cat("Making API request...\n")
-  response <- tryCatch({
-    GET(api_url)
-  }, error = function(e) {
-    cat("Error in API request:", e$message, "\n")
-    stop("Error connecting to PubPeer API: ", e$message)
-  })
-  
-  # Debug: Print response status
-  cat("Response status code:", status_code(response), "\n")
-  
-  if (status_code(response) == 200) {
-    cat("Successfully received response\n")
-    # Debug: Print raw response
-    raw_content <- rawToChar(response$content)
-    cat("Raw response:", substr(raw_content, 1, 100), "...\n")
+  tryCatch({
+    # Initialize Chrome driver
+    driver <- webdriver$Chrome(
+      service=webdriver$chrome$service$Service(
+        webdriver_manager$ChromeDriverManager()$install()
+      )
+    )
     
-    content <- fromJSON(raw_content)
-    cat("Parsed JSON content\n")
+    # Navigate to PubPeer
+    url <- paste0("https://pubpeer.com/search?q=", pmid)
+    message("Searching URL:", url)
+    driver$get(url)
     
-    if (!is.null(content$total_comments)) {
-      cat("Found total_comments:", content$total_comments, "\n")
-      return(content$total_comments)
-    } else {
-      cat("No comments found\n")
-      return(0)
+    # Wait for element and get text
+    Sys.sleep(2)  # Wait for page to load
+    comments_text <- driver$find_element("css selector", ".panel-footer .pull-right")$text
+    
+    message("Raw text found:", comments_text)
+    
+    # Clean up
+    driver$quit()
+    
+    # Extract the number
+    if (!is.null(comments_text)) {
+      clean_text <- sub("^[^0-9]*", "", comments_text)
+      clean_text <- sub("\\s.*$", "", clean_text)
+      
+      if (clean_text != "") {
+        count <- as.integer(clean_text)
+        message("Found comments count:", count)
+        return(count)
+      }
     }
-  } else if (status_code(response) == 404) {
-    cat("Publication not found on PubPeer\n")
+    
     return(0)
-  } else {
-    cat("Unexpected status code\n")
-    stop("Error: HTTP status code ", status_code(response))
-  }
+    
+  }, error = function(e) {
+    message("Error:", e$message)
+    if (exists("driver")) driver$quit()
+    return(0)
+  })
 }
 
-# Example usage
-if (FALSE) {  # This block won't run unless explicitly set to TRUE
-  pmid <- "12345678"
-  tryCatch({
-    comments_count <- get_pubpeer_comments_count(pmid)
-    print(paste("Number of PubPeer comments:", comments_count))
-  }, error = function(e) {
-    print(paste("Error:", e$message))
-  })
-} 
+# Test with PMID
+pmid <- "39520719"
+result <- get_pubpeer_comments_count(pmid)
+print(paste("Number of PubPeer comments:", result)) 
